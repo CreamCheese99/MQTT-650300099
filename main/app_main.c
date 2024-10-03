@@ -1,5 +1,4 @@
-
-/* MQTT (over TCP) and Button Example */
+/* MQTT (over TCP) and Button Example with LED Control */
 
 #include <stdio.h>
 #include <stdint.h>
@@ -27,6 +26,7 @@
 
 // Define constants
 #define BUTTON_GPIO 23
+#define LED_GPIO 2  // Define GPIO for the LED
 #define ESP_INTR_FLAG_DEFAULT 0  // Manually define ESP_INTR_FLAG_DEFAULT
 
 static const char *TAG = "mqtt_example";
@@ -80,10 +80,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 }
 
 /*
- * @brief Initializes GPIO for the button and configures interrupt handling
+ * @brief Initializes GPIO for the button and LED, and configures interrupt handling
  */
 static void button_init(void)
 {
+    // Button configuration
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_ANYEDGE;  // Interrupt on both edges (button press and release)
     io_conf.mode = GPIO_MODE_INPUT;         // Set as input mode
@@ -91,6 +92,9 @@ static void button_init(void)
     io_conf.pull_down_en = 0;               // No pull-down
     io_conf.pull_up_en = 1;                 // Enable pull-up resistor
     gpio_config(&io_conf);
+
+    // LED configuration
+    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);  // Set GPIO for LED as output
 
     // Install GPIO ISR handler
     gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);  // Fixed the missing flag definition
@@ -103,11 +107,11 @@ static void button_init(void)
 static void IRAM_ATTR button_isr_handler(void *arg)
 {
     button_pressed = gpio_get_level(BUTTON_GPIO);  // Read the button state (1 = pressed, 0 = released)
-    xTaskCreate(button_task, "button_task", 2048, NULL, 10, NULL);  // Trigger task to handle MQTT publishing
+    xTaskCreate(button_task, "button_task", 2048, NULL, 10, NULL);  // Trigger task to handle MQTT publishing and LED control
 }
 
 /*
- * @brief Task to publish message based on button state
+ * @brief Task to publish message based on button state and control LED
  */
 static void button_task(void *arg)
 {
@@ -117,6 +121,7 @@ static void button_task(void *arg)
     // Check the button state after debounce
     if (gpio_get_level(BUTTON_GPIO) == button_pressed) {  // Confirm the stable state
         const char* message = (button_pressed == 1) ? "1" : "0";  // "1" when pressed, "0" when released
+        gpio_set_level(LED_GPIO, button_pressed);  // Turn on LED when pressed, off when released
         int msg_id = esp_mqtt_client_publish(client, "KMITL/SIET/65030099/topic/button", message, 0, 1, 0);
         ESP_LOGI(TAG, "Button state: %s, published message, msg_id=%d", message, msg_id);
     }
@@ -146,7 +151,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     ESP_ERROR_CHECK(example_connect());
 
-    // Initialize button
+    // Initialize button and LED
     button_init();
 
     // Start MQTT client
