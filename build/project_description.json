@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "mqtt_tcp",
-    "project_version":    "1",
+    "project_version":    "af9aac1-dirty",
     "project_path":       "D:/Esp32_specailTopic/tcp",
     "idf_path":           "D:/Esp32_specailTopic/v5.2.2/esp-idf",
     "build_dir":          "D:/Esp32_specailTopic/tcp/build",
